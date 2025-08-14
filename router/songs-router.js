@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { Readable } = require("stream");
-const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
+const upload = require("../upload"); // this now exports multer instance
 
 const {
   getAllSongs,
@@ -14,16 +14,12 @@ const {
   searchtrandingSongs
 } = require("../controller/songs-controller");
 
-// ✅ Configure Cloudinary (make sure you have these in .env)
+// Configure Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-
-// ✅ Multer memory storage (no saving to disk)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
 
 // =================== ROUTES ===================
 
@@ -39,12 +35,12 @@ router.get("/love-songs", searchLoveSongs);
 // Get rap songs
 router.get("/rapsong", rapsongdisplyed);
 
-// ✅ Upload song with cover & audio to Cloudinary
+// Upload song with cover & audio
 router.post(
   "/upload",
   upload.fields([
     { name: "cover", maxCount: 1 },
-    { name: "audio", maxCount: 1 },
+    { name: "audio", maxCount: 1 }
   ]),
   async (req, res, next) => {
     try {
@@ -52,7 +48,7 @@ router.post(
         return res.status(400).json({ error: "Cover and audio are required" });
       }
 
-      // Upload cover
+      // Upload cover to Cloudinary
       const coverUpload = new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "image" },
@@ -61,7 +57,7 @@ router.post(
         Readable.from(req.files.cover[0].buffer).pipe(stream);
       });
 
-      // Upload audio
+      // Upload audio to Cloudinary
       const audioUpload = new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "video" },
@@ -73,14 +69,14 @@ router.post(
       // Wait for both uploads
       const [coverResult, audioResult] = await Promise.all([
         coverUpload,
-        audioUpload,
+        audioUpload
       ]);
 
       // Attach URLs to body
       req.body.coverUrl = coverResult.secure_url;
       req.body.audioUrl = audioResult.secure_url;
 
-      // Save to DB using your controller
+      // Save to DB
       return addSong(req, res, next);
     } catch (err) {
       console.error("Upload Error:", err);
