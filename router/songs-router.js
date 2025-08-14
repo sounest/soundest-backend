@@ -14,14 +14,14 @@ const {
   searchtrandingSongs
 } = require("../controller/songs-controller");
 
-// ✅ Configure Cloudinary
+// ✅ Configure Cloudinary (make sure you have these in .env)
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
   api_secret: process.env.API_SECRET,
 });
 
-// ✅ Multer memory storage (no local disk saving)
+// ✅ Multer memory storage (no saving to disk)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -39,7 +39,7 @@ router.get("/love-songs", searchLoveSongs);
 // Get rap songs
 router.get("/rapsong", rapsongdisplyed);
 
-// ✅ Upload song with cover & audio (Cloudinary)
+// ✅ Upload song with cover & audio to Cloudinary
 router.post(
   "/upload",
   upload.fields([
@@ -52,36 +52,38 @@ router.post(
         return res.status(400).json({ error: "Cover and audio are required" });
       }
 
-      // Upload cover to Cloudinary
-      const coverStream = cloudinary.uploader.upload_stream(
-        { resource_type: "image" },
-        async (error, coverResult) => {
-          if (error) return res.status(500).json({ error: error.message });
+      // Upload cover
+      const coverUpload = new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: "image" },
+          (err, result) => (err ? reject(err) : resolve(result))
+        );
+        Readable.from(req.files.cover[0].buffer).pipe(stream);
+      });
 
-          // Upload audio to Cloudinary
-          const audioStream = cloudinary.uploader.upload_stream(
-            { resource_type: "video" },
-            async (error, audioResult) => {
-              if (error) return res.status(500).json({ error: error.message });
+      // Upload audio
+      const audioUpload = new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: "video" },
+          (err, result) => (err ? reject(err) : resolve(result))
+        );
+        Readable.from(req.files.audio[0].buffer).pipe(stream);
+      });
 
-              // Attach Cloudinary URLs to req.body
-              req.body.coverUrl = coverResult.secure_url;
-              req.body.audioUrl = audioResult.secure_url;
+      // Wait for both uploads
+      const [coverResult, audioResult] = await Promise.all([
+        coverUpload,
+        audioUpload,
+      ]);
 
-              // Call your existing controller
-              return addSong(req, res, next);
-            }
-          );
+      // Attach URLs to body
+      req.body.coverUrl = coverResult.secure_url;
+      req.body.audioUrl = audioResult.secure_url;
 
-          // Pipe audio buffer to Cloudinary
-          Readable.from(req.files.audio[0].buffer).pipe(audioStream);
-        }
-      );
-
-      // Pipe cover buffer to Cloudinary
-      Readable.from(req.files.cover[0].buffer).pipe(coverStream);
+      // Save to DB using your controller
+      return addSong(req, res, next);
     } catch (err) {
-      console.error(err);
+      console.error("Upload Error:", err);
       res.status(500).json({ error: err.message });
     }
   }
