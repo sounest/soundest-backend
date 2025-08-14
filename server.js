@@ -18,7 +18,7 @@ if (!process.env.MONGODB_URI) {
 
 // ✅ CORS
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "https://soundest-musics.vercel.app/",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
   credentials: true,
 }));
