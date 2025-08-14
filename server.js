@@ -10,7 +10,7 @@ const app = express();
 
 // ✅ Middleware
 app.use(cors({
-  origin: "https://your-frontend.vercel.app",
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true,
 }));
