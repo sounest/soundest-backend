@@ -8,45 +8,27 @@ const serverless = require("serverless-http");
 
 const app = express();
 
-// ✅ Debug Mongo URI
-console.log("Loaded MONGODB_URI:", process.env.MONGODB_URI);
-
-// ✅ Check ENV before connecting
-if (!process.env.MONGODB_URI) {
-  console.error("❌ MONGODB_URI is missing in .env file");
-  process.exit(1);
-}
-
-// ✅ CORS
+// ✅ Middleware
 app.use(cors({
-  origin: "https://soundest-musics.vercel.app",
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+  origin: "https://your-frontend.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true,
 }));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ✅ API Routes
+// ✅ Routes
 app.use("/api/auth", require("./router/auth-router"));
 app.use("/api/contact", require("./router/contact-router"));
 app.use("/api/artist", require("./router/artist-router"));
 app.use("/api/songs", require("./router/songs-router"));
 app.use("/api/admin", require("./router/admin-router"));
 
-// ✅ Error Middleware
+// ✅ Error handler
 app.use(errorMiddleware);
 
-// ✅ Local Development vs Vercel
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 5000;
-  connectDb().then(() => {
-    app.listen(PORT, () => {
-      console.log(`✅ Server running locally at http://localhost:${PORT}`);
-    });
-  });
-} else {
-  // In Vercel: Connect DB once and export as serverless function
-  connectDb();
-  module.exports = app;
-  module.exports.handler = serverless(app);
-}
+// ✅ DB connection
+connectDb().catch(err => console.error("❌ MongoDB connection failed:", err));
+
+module.exports = app;
+module.exports.handler = serverless(app);
