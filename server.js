@@ -1,5 +1,5 @@
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDb = require("./utils/db");
@@ -27,8 +27,17 @@ app.use("/api/admin", require("./router/admin-router"));
 // ✅ Error handler
 app.use(errorMiddleware);
 
-// ✅ DB connection
+// ✅ Connect to MongoDB
 connectDb().catch(err => console.error("❌ MongoDB connection failed:", err));
 
+// ✅ Start server normally (Render, local dev, etc.)
+if (process.env.NODE_ENV !== "serverless") {
+  const PORT = 5000;
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+  });
+}
+
+// ✅ Export for serverless platforms (Netlify, AWS Lambda, etc.)
 module.exports = app;
 module.exports.handler = serverless(app);
